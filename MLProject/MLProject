@@ -16,9 +16,4 @@ entry_points:
       data_dir:
         type: str
         default: "pokerhand_preprocessing"
-    command: >
-      python modelling.py
-        --n-estimators {n_estimators}
-        --max-depth {max_depth}
-        --min-samples-split {min_samples_split}
-        --data-dir {data_dir}
+    command: python modelling.py --n-estimators {n_estimators} --max-depth {max_depth} --min-samples-split {min_samples_split} --data-dir {data_dir}
