@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "MLProject/**"
+  repository_dispatch:
+    types: [data_updated]
   workflow_dispatch:
     inputs:
       n_estimators:
@@ -36,41 +38,21 @@ jobs:
           pip install mlflow>=2.10 scikit-learn>=1.3 pandas>=2.0 numpy>=1.24 \
             imbalanced-learn>=0.11 joblib>=1.3 matplotlib>=3.7 seaborn>=0.12
 
-      - name: Run MLflow Project
+      - name: Run MLflow Project (with Quality Gate)
+        id: train_step
         run: |
           cd MLProject
+          # Set minimum accuracy threshold for production
           mlflow run . \
             --env-manager local \
             -P n_estimators=${{ github.event.inputs.n_estimators || '200' }} \
-            -P max_depth=${{ github.event.inputs.max_depth || '15' }}
+            -P max_depth=${{ github.event.inputs.max_depth || '15' }} \
+            -P min_accuracy=0.70
 
-      - name: List MLflow artifacts
+      - name: Acceptance Gate Check
+        if: success()
         run: |
-          echo "MLflow runs:"
-          ls -la MLProject/mlruns/ || true
-          find MLProject/mlruns -name "*.png" -o -name "*.txt" | head -20
-
-      - name: Upload MLflow run artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mlflow-run-${{ github.run_number }}
-          path: MLProject/mlruns/
-          retention-days: 90
-
-      - name: Create GitHub Release with model artifacts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: model-v${{ github.run_number }}
-          name: "Model Retrain Run #${{ github.run_number }}"
-          body: |
-            Automated retraining via MLflow Project.
-            - n_estimators: ${{ github.event.inputs.n_estimators || '200' }}
-            - max_depth: ${{ github.event.inputs.max_depth || '15' }}
-          files: |
-            MLProject/mlruns/**/*.png
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "Decision: Model passed metrics threshold. Proceeding to Registry and Deployment."
 
       - name: Build and Push Docker Image (mlflow build-docker)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -92,4 +74,5 @@ jobs:
             docker push "$DOCKER_USERNAME/pokerhand-model:latest"
           else
             echo "Model directory not found. Skipping docker build."
+            exit 1
           fi

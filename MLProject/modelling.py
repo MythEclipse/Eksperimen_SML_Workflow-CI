@@ -63,6 +63,7 @@ def main() -> None:
     parser.add_argument("--n-estimators",    type=int,   default=200)
     parser.add_argument("--max-depth",       type=int,   default=15)
     parser.add_argument("--min-samples-split", type=int, default=5)
+    parser.add_argument("--min-accuracy",      type=float, default=0.70)
     parser.add_argument("--data-dir", default=str(HERE / "pokerhand_preprocessing"))
     args = parser.parse_args()
 
@@ -131,9 +132,20 @@ def main() -> None:
         mlflow.log_artifact(report_path, artifact_path="reports")
         print(report)
 
-        # Log model
-        mlflow.sklearn.log_model(model, "model")
-        log.info("Model logged. Run complete.")
+        # Quality Gate: Check if accuracy meets threshold
+        if acc < args.min_accuracy:
+            log.error("QUALITY GATE FAILED: Accuracy %.4f < Threshold %.4f", acc, args.min_accuracy)
+            raise ValueError(f"Model accuracy {acc:.4f} is below threshold {args.min_accuracy:.4f}")
+        
+        log.info("QUALITY GATE PASSED: Accuracy %.4f >= Threshold %.4f", acc, args.min_accuracy)
+
+        # Log model and register it
+        mlflow.sklearn.log_model(
+            model, 
+            "model",
+            registered_model_name="pokerhand-classification-production"
+        )
+        log.info("Model logged and registered. Run complete.")
 
 
 if __name__ == "__main__":
