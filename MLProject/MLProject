@@ -13,7 +13,7 @@ entry_points:
       min_samples_split:
         type: int
         default: 5
-      data_dir:
-        type: str
-        default: "pokerhand_preprocessing"
-    command: python modelling.py --n-estimators {n_estimators} --max-depth {max_depth} --min-samples-split {min_samples_split} --data-dir {data_dir}
+      min-accuracy:
+        type: float
+        default: 0.70
+    command: python modelling.py --n-estimators {n_estimators} --max-depth {max_depth} --min-samples-split {min_samples_split} --data-dir pokerhand_preprocessing --min-accuracy {min-accuracy}
